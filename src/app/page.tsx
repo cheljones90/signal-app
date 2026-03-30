@@ -1,65 +1,77 @@
-import Image from "next/image";
+'use client'
+
+import { useState } from 'react'
+import { TestSession } from '@/lib/types'
+import TestLibrary from '@/components/signal/TestLibrary'
+import SetupFlow from '@/components/signal/SetupFlow'
+import SimulationRunning from '@/components/signal/SimulationRunning'
+import ReportView from '@/components/signal/ReportView'
+
+type ReportType = 'designer' | 'product' | 'engineering' | 'leadership'
+
+type SetupData = {
+  projectName: string
+  testName: string
+  prdText: string
+  prdRequirements: any[]
+  prototypeUrl: string
+  personas: any[]
+  reportTypes: ReportType[]
+}
+
+type View = 'library' | 'setup' | 'simulation' | 'report'
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+  const [view, setView] = useState<View>('library')
+  const [setupData, setSetupData] = useState<SetupData | null>(null)
+
+  if (view === 'library') {
+    return (
+      <TestLibrary
+        onNewTest={() => setView('setup')}
+        onOpenSession={(_session: TestSession) => setView('report')}
+      />
+    )
+  }
+
+  if (view === 'setup') {
+    return (
+      <SetupFlow
+        onBack={() => setView('library')}
+        onRunSignal={(data) => {
+          setSetupData(data)
+          setView('simulation')
+        }}
+      />
+    )
+  }
+
+  if (view === 'simulation' && setupData) {
+    return (
+      <SimulationRunning
+        projectName={setupData.projectName}
+        testName={setupData.testName}
+        personas={setupData.personas}
+        prdRequirements={setupData.prdRequirements}
+        reportTypes={setupData.reportTypes}
+        onComplete={() => setView('report')}
+      />
+    )
+  }
+
+  if (view === 'report' && setupData) {
+    return (
+      <ReportView
+        projectName={setupData.projectName}
+        testName={setupData.testName}
+        personas={setupData.personas}
+        prdRequirements={setupData.prdRequirements}
+        prototypeUrl={setupData.prototypeUrl}
+        reportTypes={setupData.reportTypes}
+        onBack={() => setView('library')}
+      />
+    )
+  }
+
+  return null
 }
