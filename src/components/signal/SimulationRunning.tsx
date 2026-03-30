@@ -23,19 +23,6 @@ const SIMULATION_STAGES = [
   { id: 'finalizing', label: 'Finalizing findings', duration: 1500 },
 ]
 
-const PERSONA_THOUGHTS = [
-  "Scanning the first screen...",
-  "Looking for the primary action...",
-  "Hmm, not sure what this button does.",
-  "I expected to see a price summary here.",
-  "Tapping through to the next step...",
-  "Wait, how did I get here?",
-  "This makes sense — continuing forward.",
-  "I'd probably call support at this point.",
-  "Almost there, just need to confirm...",
-  "Completed the flow.",
-]
-
 export default function SimulationRunning({
   projectName,
   testName,
@@ -50,6 +37,11 @@ export default function SimulationRunning({
   const [thoughtIndex, setThoughtIndex] = useState(0)
   const [completedStages, setCompletedStages] = useState<string[]>([])
   const [done, setDone] = useState(false)
+  const [thoughts, setThoughts] = useState<string[]>([
+    'Loading simulation...',
+    'Analyzing the prototype...',
+    'Preparing personas...',
+  ])
 
   // Drive the stage progression
   useEffect(() => {
@@ -84,13 +76,33 @@ export default function SimulationRunning({
     return () => clearInterval(interval)
   }, [])
 
+  // Fetch dynamic thoughts
+  useEffect(() => {
+    const fetchThoughts = async () => {
+      try {
+        const res = await fetch('/api/generate-thoughts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ personas, prdRequirements, testName }),
+        })
+        const data = await res.json()
+        if (data.thoughts?.length > 0) {
+          setThoughts(data.thoughts)
+        }
+      } catch {
+        // Keep default thoughts if fetch fails
+      }
+    }
+    fetchThoughts()
+  }, [])
+  
   // Cycle through persona thoughts
   useEffect(() => {
     const interval = setInterval(() => {
-      setThoughtIndex(prev => (prev + 1) % PERSONA_THOUGHTS.length)
-    }, 1800)
+      setThoughtIndex(prev => (prev + 1) % thoughts.length)
+    }, 2200)
     return () => clearInterval(interval)
-  }, [])
+  }, [thoughts.length])
 
   // Cycle through personas during simulation
   useEffect(() => {
@@ -353,7 +365,7 @@ export default function SimulationRunning({
                 borderLeft: '3px solid var(--accent)',
                 transition: 'opacity 0.3s',
               }}>
-                "{PERSONA_THOUGHTS[thoughtIndex]}"
+                "{thoughts[thoughtIndex]}"
               </div>
             </div>
           )}

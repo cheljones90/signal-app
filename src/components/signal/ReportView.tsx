@@ -129,7 +129,7 @@ export default function ReportView({
     }))
   ]
 
-  if (loading) {
+if (loading) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -144,6 +144,17 @@ export default function ReportView({
         <div style={{ fontSize: '18px', fontWeight: '600' }}>Building your reports...</div>
         <div style={{ fontSize: '14px', color: 'var(--muted-foreground)' }}>
           Signal is synthesizing findings across {personas.length} persona{personas.length > 1 ? 's' : ''}
+        </div>
+        <div style={{
+          fontSize: '13px',
+          color: 'var(--muted-foreground)',
+          padding: '10px 16px',
+          backgroundColor: 'var(--card)',
+          border: '1px solid var(--card-border)',
+          borderRadius: '8px',
+          marginTop: '8px',
+        }}>
+          ⏱ This usually takes 20–30 seconds
         </div>
       </div>
     )
@@ -291,46 +302,73 @@ export default function ReportView({
               marginBottom: '32px',
             }}>
               {[
-                {
-                  label: 'Confidence Score',
-                  value: `${report.overallConfidence}%`,
-                  color: confidenceColor(report.overallConfidence),
-                },
-                {
-                  label: 'Friction Points',
-                  value: report.totalFrictionPoints,
-                  color: 'var(--warning)',
-                },
-                {
-                  label: 'Critical Issues',
-                  value: report.criticalIssues,
-                  color: 'var(--destructive)',
-                },
-                {
-                  label: 'Personas Tested',
-                  value: personas.length,
-                  color: 'var(--accent)',
-                },
-              ].map(stat => (
-                <div key={stat.label} style={{
-                  backgroundColor: 'var(--card)',
-                  border: '1px solid var(--card-border)',
-                  borderRadius: '12px',
-                  padding: '20px 24px',
-                }}>
-                  <div style={{
-                    fontSize: '32px',
-                    fontWeight: '700',
-                    color: stat.color,
-                    marginBottom: '4px',
-                  }}>
-                    {stat.value}
-                  </div>
-                  <div style={{ fontSize: '13px', color: 'var(--muted-foreground)' }}>
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
+  {
+    label: 'Confidence Score',
+    value: `${report.overallConfidence}%`,
+    color: confidenceColor(report.overallConfidence),
+    tooltip: 'How confidently Signal predicts users will complete this flow without significant friction. 80%+ is strong, below 60% needs attention.',
+  },
+  {
+    label: 'Friction Points',
+    value: report.totalFrictionPoints,
+    color: 'var(--warning)',
+    tooltip: 'Total moments where a persona hesitated, got confused, or nearly dropped off across all screens and flows.',
+  },
+  {
+    label: 'Critical Issues',
+    value: report.criticalIssues,
+    color: 'var(--destructive)',
+    tooltip: 'High severity findings that are likely to cause task failure or abandonment. These should be addressed before shipping.',
+  },
+  {
+    label: 'Personas Tested',
+    value: personas.length,
+    color: 'var(--accent)',
+    tooltip: 'Number of distinct user personas Signal simulated through this prototype.',
+  },
+].map(stat => (
+  <div key={stat.label} style={{
+    backgroundColor: 'var(--card)',
+    border: '1px solid var(--card-border)',
+    borderRadius: '12px',
+    padding: '20px 24px',
+    position: 'relative',
+    cursor: 'default',
+  }}
+    title={stat.tooltip}
+  >
+    <div style={{
+      fontSize: '32px',
+      fontWeight: '700',
+      color: stat.color,
+      marginBottom: '4px',
+    }}>
+      {stat.value}
+    </div>
+    <div style={{
+      fontSize: '13px',
+      color: 'var(--muted-foreground)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+    }}>
+      {stat.label}
+      <span style={{
+        fontSize: '11px',
+        color: 'var(--muted-foreground)',
+        backgroundColor: 'var(--card-border)',
+        borderRadius: '50%',
+        width: '14px',
+        height: '14px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'help',
+        flexShrink: 0,
+      }}>?</span>
+    </div>
+  </div>
+))}
             </div>
 
             {/* Top Findings */}

@@ -10,6 +10,7 @@ type SetupData = {
   projectName: string
   testName: string
   prdText: string
+  kpis: string
   prdRequirements: PRDRequirement[]
   prototypeUrl: string
   personas: Persona[]
@@ -31,6 +32,8 @@ const STEPS = [
 
 const INDUSTRIES = [
   { value: 'fintech', label: 'Fintech / Payments' },
+  { value: 'personal-services', label: 'Personal Services' },
+  { value: 'professional-services', label: 'Professional Services' },
   { value: 'healthcare', label: 'Healthcare' },
   { value: 'saas', label: 'SaaS / Productivity' },
   { value: 'ecommerce', label: 'E-commerce' },
@@ -53,6 +56,7 @@ export default function SetupFlow({ onBack, onRunSignal }: Props) {
   const [projectName, setProjectName] = useState('')
   const [testName, setTestName] = useState('')
   const [prdText, setPrdText] = useState('')
+  const [kpis, setKpis] = useState('')
   const [prdRequirements, setPrdRequirements] = useState<PRDRequirement[]>([])
   const [prdParsed, setPrdParsed] = useState(false)
 
@@ -156,6 +160,7 @@ export default function SetupFlow({ onBack, onRunSignal }: Props) {
       projectName,
       testName,
       prdText,
+      kpis,
       prdRequirements,
       prototypeUrl,
       personas,
@@ -329,6 +334,34 @@ export default function SetupFlow({ onBack, onRunSignal }: Props) {
             </div>
 
             <div style={{ marginBottom: '16px' }}>
+  <label style={{ fontSize: '13px', fontWeight: '500', display: 'block', marginBottom: '6px', color: 'var(--muted-foreground)' }}>
+    Critical KPIs
+    <span style={{ fontWeight: '400', marginLeft: '6px', color: 'var(--muted-foreground)' }}>
+      — what does success look like for this feature?
+    </span>
+  </label>
+  <textarea
+    value={kpis}
+    onChange={e => setKpis(e.target.value)}
+    placeholder="e.g. Increase estimate completion rate by 20%, reduce time-to-send from 5 min to under 2 min, achieve 80%+ merchant satisfaction score"
+    rows={3}
+    style={{
+      width: '100%',
+      padding: '12px 14px',
+      backgroundColor: 'var(--card)',
+      border: '1px solid var(--card-border)',
+      borderRadius: '8px',
+      color: 'var(--foreground)',
+      fontSize: '14px',
+      outline: 'none',
+      resize: 'vertical',
+      fontFamily: 'inherit',
+      lineHeight: '1.6',
+    }}
+  />
+</div>
+
+<div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '13px', fontWeight: '500', display: 'block', marginBottom: '6px', color: 'var(--muted-foreground)' }}>
                 Paste your PRD
               </label>

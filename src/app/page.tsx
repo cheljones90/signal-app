@@ -13,6 +13,7 @@ type SetupData = {
   projectName: string
   testName: string
   prdText: string
+  kpis: string
   prdRequirements: any[]
   prototypeUrl: string
   personas: any[]
