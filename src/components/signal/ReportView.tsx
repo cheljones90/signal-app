@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Persona, PRDRequirement } from '@/lib/types'
 
 type ReportType = 'designer' | 'product' | 'engineering' | 'leadership'
@@ -56,6 +56,8 @@ type Props = {
   prototypeUrl: string
   reportTypes: ReportType[]
   onBack: () => void
+  report?: ReportData
+  isShared?: boolean
 }
 
 function severityColor(severity: string) {
@@ -78,16 +80,66 @@ export default function ReportView({
   prototypeUrl,
   reportTypes,
   onBack,
+  report: initialReport,
+  isShared = false,
 }: Props) {
-  const [report, setReport] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [report, setReport] = useState<ReportData | null>(initialReport || null)
+  const [loading, setLoading] = useState(!initialReport)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'overview' | ReportType>('overview')
   const [activeScreen, setActiveScreen] = useState<Screen | null>(null)
   const [activeAnnotation, setActiveAnnotation] = useState<Annotation | null>(null)
+  const [shareUrl, setShareUrl] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const saveReportToKV = async (reportData: ReportData) => {
+    setSaving(true)
+    try {
+      const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const res = await fetch('/api/save-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          sessionData: {
+            projectName,
+            testName,
+            personas,
+            prdRequirements,
+            prototypeUrl,
+            reportTypes,
+            report: reportData,
+            savedAt: new Date().toISOString(),
+          }
+        })
+      })
+      const data = await res.json()
+      if (data.shareUrl) {
+        setShareUrl(data.shareUrl)
+        setSaved(true)
+      }
+    } catch (err) {
+      console.error('Failed to save session:', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCopyLink = async () => {
+    if (!shareUrl) return
+    await navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   useEffect(() => {
-    generateReport()
+    if (!initialReport) {
+      generateReport()
+    } else {
+      setActiveScreen(initialReport.screens?.[0] || null)
+    }
   }, [])
 
   const generateReport = async () => {
@@ -111,6 +163,7 @@ export default function ReportView({
         if (data.report.screens?.length > 0) {
           setActiveScreen(data.report.screens[0])
         }
+        await saveReportToKV(data.report)
       } else {
         setError('Failed to generate report')
       }
@@ -129,7 +182,7 @@ export default function ReportView({
     }))
   ]
 
-if (loading) {
+  if (loading) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -239,18 +292,53 @@ if (loading) {
             <span style={{ fontSize: '13px', fontWeight: '500' }}>{testName}</span>
           </div>
         </div>
-        <button
-          onClick={onBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--muted-foreground)',
-            cursor: 'pointer',
-            fontSize: '14px',
-          }}
-        >
-          ← Back to Library
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {!isShared && shareUrl && (
+            <button
+              onClick={handleCopyLink}
+              style={{
+                backgroundColor: copied ? 'var(--success)' : 'var(--accent-subtle)',
+                color: copied ? 'white' : 'var(--accent)',
+                border: `1px solid ${copied ? 'var(--success)' : 'var(--accent)'}`,
+                borderRadius: '8px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              {copied ? '✓ Copied!' : '🔗 Share Report'}
+            </button>
+          )}
+          {!isShared && saving && (
+            <span style={{ fontSize: '12px', color: 'var(--muted-foreground)' }}>
+              Saving...
+            </span>
+          )}
+          {!isShared && saved && !saving && (
+            <span style={{ fontSize: '12px', color: 'var(--success)' }}>
+              ✓ Autosaved
+            </span>
+          )}
+          {!isShared && (
+            <button
+              onClick={onBack}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--muted-foreground)',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              ← Back to Library
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tab Bar */}
@@ -302,73 +390,73 @@ if (loading) {
               marginBottom: '32px',
             }}>
               {[
-  {
-    label: 'Confidence Score',
-    value: `${report.overallConfidence}%`,
-    color: confidenceColor(report.overallConfidence),
-    tooltip: 'How confidently Signal predicts users will complete this flow without significant friction. 80%+ is strong, below 60% needs attention.',
-  },
-  {
-    label: 'Friction Points',
-    value: report.totalFrictionPoints,
-    color: 'var(--warning)',
-    tooltip: 'Total moments where a persona hesitated, got confused, or nearly dropped off across all screens and flows.',
-  },
-  {
-    label: 'Critical Issues',
-    value: report.criticalIssues,
-    color: 'var(--destructive)',
-    tooltip: 'High severity findings that are likely to cause task failure or abandonment. These should be addressed before shipping.',
-  },
-  {
-    label: 'Personas Tested',
-    value: personas.length,
-    color: 'var(--accent)',
-    tooltip: 'Number of distinct user personas Signal simulated through this prototype.',
-  },
-].map(stat => (
-  <div key={stat.label} style={{
-    backgroundColor: 'var(--card)',
-    border: '1px solid var(--card-border)',
-    borderRadius: '12px',
-    padding: '20px 24px',
-    position: 'relative',
-    cursor: 'default',
-  }}
-    title={stat.tooltip}
-  >
-    <div style={{
-      fontSize: '32px',
-      fontWeight: '700',
-      color: stat.color,
-      marginBottom: '4px',
-    }}>
-      {stat.value}
-    </div>
-    <div style={{
-      fontSize: '13px',
-      color: 'var(--muted-foreground)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px',
-    }}>
-      {stat.label}
-      <span style={{
-        fontSize: '11px',
-        color: 'var(--muted-foreground)',
-        backgroundColor: 'var(--card-border)',
-        borderRadius: '50%',
-        width: '14px',
-        height: '14px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'help',
-        flexShrink: 0,
-      }}>?</span>
-    </div>
-  </div>
-))}
+                {
+                  label: 'Confidence Score',
+                  value: `${report.overallConfidence}%`,
+                  color: confidenceColor(report.overallConfidence),
+                  tooltip: 'How confidently Signal predicts users will complete this flow without significant friction. 80%+ is strong, below 60% needs attention.',
+                },
+                {
+                  label: 'Friction Points',
+                  value: report.totalFrictionPoints,
+                  color: 'var(--warning)',
+                  tooltip: 'Total moments where a persona hesitated, got confused, or nearly dropped off across all screens and flows.',
+                },
+                {
+                  label: 'Critical Issues',
+                  value: report.criticalIssues,
+                  color: 'var(--destructive)',
+                  tooltip: 'High severity findings that are likely to cause task failure or abandonment. These should be addressed before shipping.',
+                },
+                {
+                  label: 'Personas Tested',
+                  value: personas.length,
+                  color: 'var(--accent)',
+                  tooltip: 'Number of distinct user personas Signal simulated through this prototype.',
+                },
+              ].map(stat => (
+                <div key={stat.label} style={{
+                  backgroundColor: 'var(--card)',
+                  border: '1px solid var(--card-border)',
+                  borderRadius: '12px',
+                  padding: '20px 24px',
+                  position: 'relative',
+                  cursor: 'default',
+                }}
+                  title={stat.tooltip}
+                >
+                  <div style={{
+                    fontSize: '32px',
+                    fontWeight: '700',
+                    color: stat.color,
+                    marginBottom: '4px',
+                  }}>
+                    {stat.value}
+                  </div>
+                  <div style={{
+                    fontSize: '13px',
+                    color: 'var(--muted-foreground)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}>
+                    {stat.label}
+                    <span style={{
+                      fontSize: '11px',
+                      color: 'var(--muted-foreground)',
+                      backgroundColor: 'var(--card-border)',
+                      borderRadius: '50%',
+                      width: '14px',
+                      height: '14px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'help',
+                      flexShrink: 0,
+                    }}>?</span>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Top Findings */}
