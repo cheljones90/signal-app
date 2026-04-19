@@ -7,20 +7,30 @@ const client = new Anthropic({
 
 export async function POST(request: NextRequest) {
   try {
-    const { personas, prdRequirements, prototypeUrl, reportTypes, testName } = await request.json()
+    const { personas, prdRequirements, prototypeUrl, reportTypes, testName, kpis, exportedFrames } = await request.json()
 
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: `You are Signal, a persona-driven usability simulation tool for product designers.
+    const imageContent = exportedFrames && exportedFrames.length > 0
+      ? exportedFrames.map((frame: any) => ({
+          type: 'image' as const,
+          source: {
+            type: 'base64' as const,
+            media_type: 'image/png' as const,
+            data: frame.imageData,
+          },
+        }))
+      : []
 
-You have just completed a usability simulation of a Figma prototype. Based on the personas and PRD requirements provided, generate a realistic and detailed usability report.
+    const textContent = {
+      type: 'text' as const,
+      text: `You are Signal, a persona-driven usability simulation tool for product designers.
+
+${exportedFrames && exportedFrames.length > 0
+  ? `You have been provided with ${exportedFrames.length} actual design frame image${exportedFrames.length !== 1 ? 's' : ''} from Figma: ${exportedFrames.map((f: any) => f.name).join(', ')}. Analyze these images visually — look at the actual UI, layout, typography, information hierarchy, interactive elements, and visual affordances. Base your findings on what you actually see in the designs.`
+  : 'Analyze based on the PRD and persona context provided.'
+}
 
 TEST NAME: ${testName}
-PROTOTYPE URL: ${prototypeUrl}
+CRITICAL KPIs: ${kpis || 'Not specified'}
 
 PERSONAS TESTED:
 ${personas.map((p: any) => `
@@ -38,7 +48,12 @@ ${prdRequirements.map((r: any) => `- [${r.type}] ${r.description}`).join('\n')}
 
 REPORT TYPES REQUESTED: ${reportTypes.join(', ')}
 
-Generate a complete usability report. Return ONLY a JSON object with no markdown, in this exact format:
+${exportedFrames && exportedFrames.length > 0
+  ? `Frame names for reference: ${exportedFrames.map((f: any) => f.name).join(', ')}`
+  : ''
+}
+
+Generate a complete usability report based on your visual analysis of the actual design frames. Return ONLY a JSON object with no markdown, in this exact format:
 
 {
   "overallConfidence": 72,
@@ -52,7 +67,7 @@ Generate a complete usability report. Return ONLY a JSON object with no markdown
   "screens": [
     {
       "id": "screen-1",
-      "name": "Home Screen",
+      "name": "exact frame name from the images provided",
       "confidenceScore": 85,
       "annotations": [
         {
@@ -61,7 +76,7 @@ Generate a complete usability report. Return ONLY a JSON object with no markdown
           "personaName": "${personas[0]?.name || 'Persona 1'}",
           "severity": "high",
           "type": "friction",
-          "comment": "First person inner monologue comment from the persona's perspective, 1-2 sentences",
+          "comment": "First person inner monologue referencing specific UI elements you can see in the design",
           "x": 45,
           "y": 30
         }
@@ -69,33 +84,67 @@ Generate a complete usability report. Return ONLY a JSON object with no markdown
     }
   ],
   "designerReport": {
-    "summary": "2-3 sentence summary for the designer",
+    "summary": "2-3 sentence summary referencing specific visual observations from the frames",
     "findings": [
-      { "severity": "high", "screen": "Screen name", "issue": "Issue description", "recommendation": "What to fix" }
+      {
+        "severity": "high",
+        "screen": "exact frame name",
+        "issue": "Specific issue referencing actual UI elements visible in the design",
+        "whyItMatters": "Why this affects the user experience and KPI goals",
+        "howToStrengthen": "Specific actionable recommendation"
+      }
     ]
   },
   "productReport": {
     "summary": "2-3 sentence summary for product",
     "scopeRecommendations": [
-      { "priority": "must-fix", "item": "Item description", "rationale": "Why it matters" }
+      {
+        "priority": "must-fix",
+        "item": "Item description",
+        "whyItMatters": "How this affects product goals and KPIs",
+        "howToStrengthen": "What product decision would address this",
+        "rationale": "Business rationale"
+      }
     ]
   },
   "engineeringReport": {
     "summary": "2-3 sentence summary for engineering",
     "edgeCases": [
-      { "screen": "Screen name", "case": "Edge case description", "impact": "What breaks" }
+      {
+        "screen": "exact frame name",
+        "case": "Edge case description based on visible UI states",
+        "whyItMatters": "What breaks if not handled",
+        "howToStrengthen": "Technical recommendation",
+        "impact": "What breaks"
+      }
     ]
   },
   "leadershipReport": {
     "summary": "2-3 sentence executive summary",
-    "recommendation": "Clear go/no-go or what needs to happen before shipping",
+    "recommendation": "Clear go/no-go recommendation",
     "keyMetrics": [
       { "label": "Metric name", "value": "Value" }
+    ],
+    "findings": [
+      {
+        "issue": "High level finding",
+        "whyItMatters": "Business impact and KPI relationship",
+        "howToStrengthen": "Strategic recommendation"
+      }
     ]
   }
 }
 
-Make the annotations feel like real persona reactions — write in first person from each persona's voice. Include 3-5 screens with 2-4 annotations each. Make findings specific and actionable. Vary severity levels realistically.`
+Make annotations reference specific UI elements you can actually see. Write persona comments in first person. Include all ${exportedFrames?.length || 3} screens. Make findings grounded in visual reality.`
+    }
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: [...imageContent, textContent],
         }
       ]
     })
